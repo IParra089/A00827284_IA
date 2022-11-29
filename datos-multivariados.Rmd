@@ -1,0 +1,128 @@
+---
+title: "Reporte final: Los peces y el mercurio"
+author: "Ileana Parra"
+date: "2022-10-19"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+M=read.csv("C:/Users/ilean/Desktop/ITESM/7to Semestre/Parte 1/mercurio.csv") #leer la base de datos
+D=matrix(c(M$X3,M$X4,M$X5,M$X6,M$X7,M$X8,M$X9,M$X10,M$X11),ncol=9)
+```
+
+##Prueba de normalidad 
+```{r}
+library(MVN)
+## Test de Multinomalidad: Método Sesgo y kurtosis de Mardia
+mvn(D,subset = NULL,mvn = "mardia", covariance = FALSE, alpha=0.05,showOutliers = FALSE)
+
+```
+
+*La prueba de Mardia indica un sesgo de 410.214 lo que significa que los datos presentan un sesgo a la derecha, también nos indica que contamos con una distribución platicútica ya que la curtosis es mayor a 3.
+*La prueba de Anderson-Darling nos indica que no tenemos normalidad multivariada ya que solo dos variables son normales.
+
+```{r}
+B=matrix(c(D[,2],D[,8]),ncol=2)
+library(MVN)
+## Test de Multinomalidad: Método Sesgo y kurtosis de Mardia
+mvn(B,subset = NULL,mvn = "mardia", covariance = FALSE, alpha=0.05,showOutliers = FALSE)
+
+```
+
+*La prueba de Mardia indica un sesgo a la derecha y una distribución leptocúrtica.
+*La prueba de Anderson-Darling nos indica que sí hay normalidad multivariada ya que ambas variables son normales.
+
+##Gráfica de contornos
+
+```{r}
+library(MASS)
+B.kde <- kde2d(B[,1], B[,2], n = 53,lims = c(range(3,10),range(-1,3))) 
+contour(B.kde)   
+```
+
+##Datos atípicos o influyentes
+```{r}
+#Distancia de Mahalanobis
+X=colMeans(B)
+S=cov(B)
+d2M =  mahalanobis(B,X,S)
+plot(qchisq(((1:nrow(B)) - 1/2)/nrow(B),df=2),sort( d2M ) )
+abline(a=0, b=1,col="red")
+```
+
+*De acuerdo con la gráfica, los datos no se comportan como una normal, ya que presentan un sesgo.
+*Los puntos que se alejan de la gráfica se identifican como outliers.
+
+#Componentes principales.
+##Matriz de correlaciones
+```{r}
+cor(D)
+```
+Como se puede ver en la matriz de correlaciones, hay una fuerte correlación entre la mayoría de las variables, por lo que el uso de componentes principales es adecuado.
+
+```{r}
+cpa <- prcomp(D, scale=FALSE)
+```
+```{r}
+print("desviaciones estándar: ")
+cpa$sdev
+print("medias: ")
+
+print("center y scale dan las medias y desv estándar previa estandarización: ")
+cpa$center
+cpa$scale
+print("Los coeficientes de la combinación lineal normalizada de componete")
+cpa$rotation
+print("Los datos por sustituidos en la combinación lineal de vectores propios:")
+cpa$x
+```
+```{r}
+S=cov(D)
+lambda=eigen(S)
+lambda$values
+lambda$vectors
+varianza=sum(diag(S))
+v=sum(lambda$values)
+print("La varianza total es:")
+print(varianza)
+print("La suma acumulada es:")
+cumsum(lambda$values/varianza)
+```
+*El componente uno explica el 72.64% de la varianza. De acuerdo con el porcentaje de varianza explicada, el número ideal de componentes es 3, ya que con estos se logra explicar el 97.753%.
+```{r}
+library(stats)
+library(FactoMineR)
+library(factoextra)
+library(ggplot2) 
+datos=D
+cp3 = PCA(datos)
+fviz_pca_ind(cp3, col.ind = "blue", addEllipses = TRUE, repel = TRUE)
+fviz_screeplot(cp3)
+fviz_contrib(cp3, choice = c("var"))
+```
+
+*En la primera gráfica se pueden ver algunos outliers como el 40 y un cluster de variables en el segundo, tercer y cuarto cuadrante.
+
+*La segunda gráfica muestra las variables que tienen mayor influencia en los componentes. Se puede ver que el componente dos casi no tiene variables con correlación negativa, mientras que el componente uno la mitad de las variables tienen correlación positiva y la otra mitad negativa. De acuerdo con el gráfico, la variable 9 tiene mayor influencia en el componente uno y la variable 3 en el componente 2.
+
+*El gráfico de sedimentación muestra que el primer componente explica la mayor parte de la varianza. Podemos usar este gráfico para justificar el número ideal de componentes el cual estaría entre 3 y 4, ya que después de estos componentes el porcentaje de varianza explicada es mínimo.
+
+*El último gráfico nos muestra que las variables 9 y 5 son las que más contribuyen al componente uno.
+
+#CONCLUSIONES
+
+*Las variables que más influyen en el componente uno son:
+
+  X11: estimación (mediante regresión) de la concentración de mercurio en el pez de 3 años (o promedio de mercurio cuando la edad no está disponible)
+  X7 = concentración media de mercurio (parte por millón) en el tejido muscualar del grupo de peces estudiados en cada lago
+  
+*El análisis por componentes principales nos permite reducir la dimensionalidad del conjunto de datos, es decir, nos facilita el trabajo, ya que en este caso reducimos el conjunto de datos de 9 variables a 3.
+
+*Debido a que se encontró normalidad en 2 variables facilita hacer cálculos o análisis donde se necesita normalidad para obtener una respuesta. La normalidad se encontró en las siguientes variables:
+
+X4 = PH
+X10 = máximo de la concentración de mercurio en cada grupo de peces

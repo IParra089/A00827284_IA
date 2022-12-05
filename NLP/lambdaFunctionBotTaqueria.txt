@@ -1,0 +1,128 @@
+"""
+This sample demonstrates an implementation of the Lex Code Hook Interface
+in order to serve a sample bot which manages orders for flowers.
+Bot, Intent, and Slot models which are compatible with this sample can be found in the Lex Console
+as part of the 'OrderFlowers' template.
+
+For instructions on how to set up and test this bot, as well as additional samples,
+visit the Lex Getting Started documentation http://docs.aws.amazon.com/lex/latest/dg/getting-started.html.
+"""
+import math
+import dateutil.parser
+import datetime
+import time
+import os
+import logging
+import json
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+
+def lambda_handler(event, context):
+    # By default, treat the user request as coming from the America/New_York time zone.
+    os.environ['TZ'] = 'GMT-5'
+    time.tzset()
+    
+    menu = {
+    "alambre vegetariano" : 115,
+    "alambre de pechuga" : 120,
+    "alambre de bistec" : 120,
+    "alambre de chuleta" : 120,
+    "alambre de costilla" : 130,
+    "alambre de chuleta" : 145,
+
+    "costra de pastor" : 30,
+    "costra de pechuga" : 35,
+    "costra de arrachera": 145,
+
+    "volcan de pastor" : 22,
+    "volcan de pechuga" : 22,
+    "volcan de bistec" : 28,
+
+    "torta de pastor" : 50,
+    "torta de maciza" : 50,
+    "torta de suadero" : 50,
+    "torta de longaniza" : 50,
+    "torta de pechuga" : 50,
+    "torta de bistec" : 65,
+    "torta de chuleta" : 65,
+
+    "refresco" : 23,
+    "agua natural" : 20,
+    "jamaica" : 24,
+    "horchata" : 24,
+
+    "cerveza en botella" : 33,
+    "cerveza de barril" : 33,
+    "litro de cerveza" : 80,
+    "michelada de litro" : 90,
+    "michelato de litro" : 90,
+
+    "arroz con leche" : 30,
+    "pastel de chocolate" : 35,
+    "fresas con crema" : 35,
+    "gelatina" : 20,
+    "flan" : 30
+}
+    
+    intent_name = event['interpretations'][0]['intent']['name']
+    slots = event['interpretations'][0]['intent']['slots']
+    currMenuItem = slots['Menu']['value']['interpretedValue']
+    currSA = event["sessionState"]["sessionAttributes"]
+    
+    if "total" not in currSA:
+        currSA["total"] = "0"
+        
+    if "order" not in currSA:
+        currSA["order"] = "[]"
+    order = json.loads(currSA["order"])
+    
+    totalInt = int(currSA["total"])
+
+    newTotal = totalInt + menu[currMenuItem]
+    menuItemCapitalized = " ".join([x.capitalize() for x in currMenuItem.split(" ")])
+    order.append(menuItemCapitalized)
+    orderString = json.dumps(order)
+    
+    
+    response = {
+        'sessionState' : {
+            "sessionAttributes" : {
+            "order" : orderString,
+            "total": str(newTotal),
+            },
+            'dialogAction' : {
+                "type": "ElicitSlot",
+                "intentName": intent_name,
+                "slotToElicit" : "AlgoMas",
+            },
+            'intent' : {
+                'name' : intent_name,
+                'state' : 'Fulfilled',
+                'slots' : slots
+            }
+        },
+        'messages': [
+        {
+        'contentType' : 'PlainText',
+        'content' : 'Su total es:'+ str(newTotal)
+        }
+        ]
+    }
+    
+    return response
+    """return {
+       "dialogState":"ConfirmIntent",
+       "sessionAttributes" : {
+            "order" : orderString,
+            "total": str(newTotal),
+       },
+       "dialogAction": {
+            "type": "ElicitSlot",
+            "intentName": "PedidoTacos",
+            "slotToElicit" : "AlgoMas",
+       },
+    }
+    """
